@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>Ensemble-Chat</title>
+
+    <!-- 阿里 iconfont -->
+    <link rel="stylesheet" href="//at.alicdn.com/t/font_8d5l8fzk5b4s8fr.css"/>
+
+    <style>
+        :root{
+            --primary:#6366f1;
+            --primary-dark:#4f46e5;
+            --bg:#f5f7fa;
+            --sidebar:#ffffffee;
+            --chat-bg:#ffffff;
+            --text:#111827;
+            --text-light:#6b7280;
+            --radius:12px;
+            --shadow:0 4px 14px rgba(0,0,0,.08);
+            --transition:.25s ease;
+        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{
+            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+            background:var(--bg);
+            color:var(--text);
+            height:100vh;
+            display:flex;
+            overflow:hidden;
+        }
+
+        /* ---------- 左侧栏 ---------- */
+        .sidebar{
+            width:260px;
+            background:var(--sidebar);
+            backdrop-filter:blur(20px);
+            border-right:1px solid #e5e7eb;
+            display:flex;
+            flex-direction:column;
+            transition:var(--transition);
+            flex-shrink:0;
+        }
+        .sidebar-header{
+            padding:16px 20px;
+            font-size:18px;
+            font-weight:600;
+            border-bottom:1px solid #e5e7eb;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }
+        .sidebar-header i{font-size:20px;color:var(--primary)}
+        .dialog-list{
+            flex:1;
+            overflow-y:auto;
+            padding:10px 14px;
+            list-style:none;
+        }
+        .dialog-item{
+            margin-bottom:6px;
+            padding:10px 12px;
+            border-radius:var(--radius);
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            transition:var(--transition);
+            position:relative;
+        }
+        .dialog-item:hover{background:#f3f4f6}
+        .dialog-item.active{
+            background:var(--primary);
+            color:#fff;
+        }
+        .dialog-name{
+            flex:1;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            font-size:14px;
+        }
+        .dialog-actions{
+            display:flex;  /* 改为始终显示 */
+            gap:4px;
+            flex-shrink:0;
+            opacity:0.7;   /* 添加一些透明度，悬停时再变明显 */
+            transition: opacity var(--transition);
+        }
+        .dialog-item:hover .dialog-actions{
+            opacity:1;     /* 悬停时变得更明显 */
+        }
+
+        .dialog-actions button{
+            border:none;
+            background:none;
+            color:inherit;
+            opacity:.7;
+            cursor:pointer;
+            font-size:16px;
+            padding:0 4px;
+        }
+        .dialog-actions button:hover{opacity:1}
+        .sidebar-footer{
+            padding:14px;
+            border-top:1px solid #e5e7eb;
+        }
+        .btn{
+            width:100%;
+            padding:10px;
+            border:none;
+            border-radius:var(--radius);
+            background:var(--primary);
+            color:#fff;
+            font-size:14px;
+            cursor:pointer;
+            transition:var(--transition);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:6px;
+        }
+        .btn:hover{background:var(--primary-dark)}
+
+        /* ---------- 主区域 ---------- */
+        .main{
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            overflow:hidden;
+        }
+        .header{
+            padding:16px 24px;
+            background:var(--chat-bg);
+            border-bottom:1px solid #e5e7eb;
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+        .header h1{font-size:20px;font-weight:600}
+        #model-select{
+            padding:6px 10px;
+            border:1px solid #d1d5db;
+            border-radius:var(--radius);
+            background:#fff;
+            font-size:14px;
+            cursor:pointer;
+        }
+        #conversation{
+            flex:1;
+            padding:20px 24px;
+            overflow-y:auto;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+        }
+        .msg-row{
+            display:flex;
+            gap:8px;
+            align-items:flex-start;
+            animation:fade .3s ease;
+        }
+        @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        .msg-row.user{flex-direction:row-reverse}
+        .avatar{
+            width:32px;
+            height:32px;
+            border-radius:50%;
+            flex-shrink:0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:16px;
+            color:#fff;
+            font-weight:600;
+        }
+        .avatar.user{background:var(--primary)}
+        .avatar.bot{background:#10b981}
+        .bubble{
+            max-width:70%;
+            padding:12px 16px;
+            border-radius:var(--radius);
+            font-size:15px;
+            line-height:1.5;
+            word-break:break-word;
+            box-shadow:var(--shadow);
+        }
+        .bubble.user{background:var(--primary);color:#fff}
+        .bubble.bot{background:var(--chat-bg);color:var(--text)}
+
+        .input-area{
+            padding:16px 24px;
+            background:var(--chat-bg);
+            border-top:1px solid #e5e7eb;
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+        .input-area input{
+            flex:1;
+            padding:12px 16px;
+            border:1px solid #d1d5db;
+            border-radius:var(--radius);
+            font-size:15px;
+            outline:none;
+            transition:var(--transition);
+        }
+        .input-area input:focus{border-color:var(--primary)}
+        .input-area button{
+            padding:12px 16px;
+            border:none;
+            border-radius:var(--radius);
+            background:var(--primary);
+            color:#fff;
+            cursor:pointer;
+            transition:var(--transition);
+            display:flex;
+            align-items:center;
+            gap:6px;
+        }
+        .input-area button:hover{background:var(--primary-dark)}
+        .input-area .deep{
+            background:#e5e7eb;
+            color:var(--text);
+        }
+        .input-area .deep.active{
+            background:#10b981;
+            color:#fff;
+        }
+
+        /* ---------- 响应式 ---------- */
+        .toggle-sidebar{
+            display:none;
+            position:absolute;
+            top:14px;
+            left:14px;
+            z-index:20;
+            background:#fff;
+            border:1px solid #e5e7eb;
+            border-radius:50%;
+            width:36px;
+            height:36px;
+            align-items:center;
+            justify-content:center;
+            cursor:pointer;
+        }
+        @media(max-width:768px){
+            .toggle-sidebar{display:flex}
+            .sidebar{
+                position:absolute;
+                top:0;
+                left:-260px;
+                height:100%;
+                z-index:10;
+                box-shadow:var(--shadow);
+            }
+            .sidebar.show{
+                left:0;
+            }
+            .main{width:100%}
+        }
+        /* 宽屏：保持弹性布局，绝对定位抽屉只在移动端生效 */
+        @media (min-width:769px){
+            .sidebar{
+                position:static !important;
+                left:0 !important;
+            }
+        }
+        @media (max-width:768px){
+            .sidebar{
+                position:absolute;
+                top:0;
+                left:-260px;
+                height:100%;
+                z-index:10;
+                box-shadow:var(--shadow);
+                transition:left .25s ease;
+            }
+            .sidebar.show{left:0;}
+            .main{width:100%}
+        }
+        
+        /* 加载指示器 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-light);
+        }
+    </style>
+</head>
+<body>
+    <!-- 移动端汉堡按钮 -->
+    <div class="toggle-sidebar" id="toggleBtn">
+        <i class="iconfont icon-menu"></i>
+    </div>
+
+    <!-- 左侧栏 -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <i class="iconfont icon-chat"></i>
+            <span>对话列表</span>
+        </div>
+        <ul class="dialog-list" id="dialog-list">
+            <li class="empty-state">加载中...</li>
+        </ul>
+        <div class="sidebar-footer">
+            <button class="btn" id="create-dialog">
+                <i class="iconfont icon-plus"></i>
+                创建对话
+            </button>
+        </div>
+    </aside>
+
+    <!-- 主区域 -->
+    <main class="main">
+        <header class="header">
+            <h1>Ensemble-Chat</h1>
+
+            <!-- 模型选择下拉框 -->
+            <select id="model-select">
+                {% for m in models %}
+                <option value="{{ m }}" {% if m==current_model %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </header>
+
+        <!-- 消息展示区 -->
+        <section id="conversation">
+            {% if current_dialog_id %}
+                {% for c in dialogs[current_dialog_id]['conversations'] %}
+                <div class="msg-row {{ c.role }}">
+                    <div class="avatar {{ c.role }}">
+                        {{ 'U' if c.role=='user' else 'B' }}
+                    </div>
+                    <div class="bubble {{ c.role }}">
+                        {{ c.content }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">请选择或创建一个对话开始聊天</div>
+            {% endif %}
+        </section>
+
+        <!-- 输入区 -->
+        <form class="input-area" id="message-form" onsubmit="return false">
+            <input id="message-input" type="text" placeholder="输入消息…" autocomplete="off" {% if not current_dialog_id %}disabled{% endif %}/>
+            <button type="button" id="deep-thinking-btn" class="deep">
+                <i class="iconfont icon-bulb"></i>
+                <span>深度思考</span>
+            </button>
+            <button type="submit" id="send-btn" {% if not current_dialog_id %}disabled{% endif %}>
+                <i class="iconfont icon-send"></i>
+                <span>发送</span>
+            </button>
+        </form>
+    </main>
+
+    <!-- Script  -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // 深度思考按钮状态
+            let deepThinkingEnabled = false;
+            
+            // 深度思考按钮点击事件
+            $('#deep-thinking-btn').on('click', function() {
+                deepThinkingEnabled = !deepThinkingEnabled;
+                $(this).toggleClass('active', deepThinkingEnabled);
+            });
+            
+            // 初始化应用
+            function initializeApp() {
+                $.getJSON('/init', function(initData) {
+                    // 渲染对话列表
+                    renderDialogs(initData.dialogs, initData.current_dialog_id);
+                    
+                    // 渲染消息
+                    if (initData.current_dialog_id && initData.dialogs[initData.current_dialog_id]) {
+                        renderMessages(initData.dialogs[initData.current_dialog_id].conversations);
+                    } else {
+                        $('#conversation').html('<div class="empty-state">请选择或创建一个对话开始聊天</div>');
+                    }
+                    
+                    // 更新UI状态
+                    updateUIState(initData.current_dialog_id);
+                }).fail(function() {
+                    $('#dialog-list').html('<li class="empty-state">加载失败，请刷新页面</li>');
+                });
+            }
+            
+            // 渲染对话列表
+            function renderDialogs(dialogsData, currentId) {
+                const $list = $('#dialog-list');
+                $list.empty();
+                
+                if (!dialogsData || Object.keys(dialogsData).length === 0) {
+                    $list.append('<li class="empty-state">暂无对话</li>');
+                    return;
+                }
+                
+                $.each(dialogsData, function(id, dialog) {
+                    const isActive = id === currentId;
+                    $list.append(`
+                        <li class="dialog-item ${isActive ? 'active' : ''}" data-id="${id}">
+                            <span class="dialog-name" title="${dialog.name}">${dialog.name}</span>
+                            <div class="dialog-actions" style="display: flex; gap: 5px;">
+                                <button class="rename-dialog" title="重命名">✏️</button>
+                                <button class="delete-dialog" title="删除">🗑️</button>
+                            </div>
+                            <input class="rename-input" style="display:none" value="${dialog.name}">
+                        </li>
+                    `);
+                });
+            }
+            
+            // 渲染消息
+            function renderMessages(conversations) {
+                const $chat = $('#conversation');
+                $chat.empty();
+                
+                if (!conversations || conversations.length === 0) {
+                    $chat.append('<div class="empty-state">开始聊天吧～</div>');
+                    return;
+                }
+                
+                conversations.forEach(function(c) {
+                    $chat.append(`
+                        <div class="msg-row ${c.role}">
+                            <div class="avatar ${c.role}">${c.role === 'user' ? 'U' : 'B'}</div>
+                            <div class="bubble ${c.role}">${c.content}</div>
+                        </div>
+                    `);
+                });
+                
+                $chat.scrollTop($chat[0].scrollHeight);
+            }
+            
+            // 更新UI状态
+            function updateUIState(currentDialogId) {
+                const hasActiveDialog = !!currentDialogId;
+                $('#message-input').prop('disabled', !hasActiveDialog);
+                $('#send-btn').prop('disabled', !hasActiveDialog);
+            }
+            
+            // 发送消息
+            $('#message-form').on('submit', function(e) {
+                e.preventDefault();
+                const message = $('#message-input').val();
+                const model = $('#model-select').val();
+                
+                if (message) {
+                    // 显示用户消息
+                    $('#conversation .empty-state').remove();
+                    $('#conversation').append(`
+                        <div class="msg-row user">
+                            <div class="avatar user">U</div>
+                            <div class="bubble user">${message}</div>
+                        </div>
+                    `);
+                    
+                    // 显示加载中的机器人消息
+                    $('#conversation').append(`
+                        <div class="msg-row bot">
+                            <div class="avatar bot">B</div>
+                            <div class="bubble bot"><div class="loading"></div></div>
+                        </div>
+                    `);
+                    
+                    $('#conversation').scrollTop($('#conversation')[0].scrollHeight);
+                    $('#message-input').val('');
+                    
+                    // 发送请求
+                    $.ajax({
+                        url: '/send_message',
+                        type: 'POST',
+                        data: {
+                            message: message, 
+                            model: model,
+                            deep_thinking: deepThinkingEnabled
+                        },
+                        success: function(data) {
+                            if (data.error) {
+                                alert(data.error);
+                                $('#conversation .msg-row.bot:last').remove();
+                            } else {
+                                // 替换加载消息为实际响应
+                                $('#conversation .msg-row.bot:last .bubble').html(data.response);
+                            }
+                            $('#conversation').scrollTop($('#conversation')[0].scrollHeight);
+                        },
+                        error: function() {
+                            $('#conversation .msg-row.bot:last').remove();
+                            alert('发送消息失败，请重试');
+                        }
+                    });
+                }
+                return false;
+            });
+
+            // 创建对话
+            $('#create-dialog').on('click', function() {
+                deepThinkingEnabled = false;
+                $('#deep-thinking-btn').removeClass('active');
+                
+                $.ajax({
+                    url: '/create_dialog',
+                    type: 'POST',
+                    success: function(data) {
+                        renderDialogs(data.dialogs, data.current_dialog_id);
+                        renderMessages(data.conversations || []);
+                        updateUIState(data.current_dialog_id);
+                        
+                        // 仅移动端自动收起
+                        if (window.innerWidth <= 768) $('#sidebar').removeClass('show');
+                    },
+                    error: function() {
+                        alert('创建对话失败，请重试');
+                    }
+                });
+            });
+
+            // 选择对话
+            $(document).on('click', '.dialog-item:not(.active)', function() {
+                deepThinkingEnabled = false;
+                $('#deep-thinking-btn').removeClass('active');
+                
+                const dialog_id = $(this).data('id');
+                $.ajax({
+                    url: '/select_dialog',
+                    type: 'POST',
+                    data: {dialog_id: dialog_id},
+                    success: function(data) {
+                        renderDialogs(data.dialogs, data.current_dialog_id);
+                        renderMessages(data.conversations);
+                        updateUIState(data.current_dialog_id);
+                        
+                        // 仅移动端自动收起
+                        if (window.innerWidth <= 768) $('#sidebar').removeClass('show');
+                    },
+                    error: function() {
+                        alert('选择对话失败，请重试');
+                    }
+                });
+            });
+
+            // 删除对话
+            $(document).on('click', '.delete-dialog', function(event) {
+                event.stopPropagation();
+                if (!confirm('确定删除此对话？')) return;
+                
+                deepThinkingEnabled = false;
+                $('#deep-thinking-btn').removeClass('active');
+                
+                const dialog_id = $(this).closest('.dialog-item').data('id');
+                $.ajax({
+                    url: '/delete_dialog',
+                    type: 'POST',
+                    data: {dialog_id: dialog_id},
+                    success: function(data) {
+                        renderDialogs(data.dialogs, data.current_dialog_id);
+                        renderMessages(data.conversations || []);
+                        updateUIState(data.current_dialog_id);
+                    },
+                    error: function() {
+                        alert('删除对话失败，请重试');
+                    }
+                });
+            });
+
+            // 重命名对话
+            $(document).on('click', '.rename-dialog', function(event) {
+                event.stopPropagation();
+                
+                deepThinkingEnabled = false;
+                $('#deep-thinking-btn').removeClass('active');
+                
+                const $item = $(this).closest('.dialog-item');
+                $item.find('.dialog-name, .dialog-actions').hide();
+                $item.find('.rename-input').show().focus().select();
+            });
+
+            $(document).on('blur keydown', '.rename-input', function(e) {
+                if(e.type === 'keydown' && e.key !== 'Enter') return;
+                
+                const $item = $(this).closest('.dialog-item');
+                const dialog_id = $item.data('id');
+                const new_name = $(this).val().trim() || '未命名对话';
+                
+                $.ajax({
+                    url: '/rename_dialog',
+                    type: 'POST',
+                    data: {dialog_id: dialog_id, new_name: new_name},
+                    success: function(data) {
+                        renderDialogs(data.dialogs, data.current_dialog_id);
+                    },
+                    error: function() {
+                        alert('重命名失败，请重试');
+                    }
+                });
+            });
+
+            // 切换模型
+            $('#model-select').on('change', function() {
+                deepThinkingEnabled = false;
+                $('#deep-thinking-btn').removeClass('active');
+                
+                const selectedModel = $(this).val();
+                $.post('/select_model', { model: selectedModel }, function(data) {
+                    if (!data.success) {
+                        alert('模型更改失败: ' + (data.error || '未知错误'));
+                    }
+                }).fail(function() {
+                    alert('模型更改失败，请重试');
+                });
+            });
+            
+            // 初始化应用
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
